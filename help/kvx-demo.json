@@ -1,0 +1,9 @@
+{
+  "title": "kvx demo",
+  "synth": {
+    "name": "saw",
+    "freq": 220,
+    "partials": [1, 2, 3, 5]
+  },
+  "tags": ["alpha", "beta"]
+}
