@@ -25,3 +25,13 @@ del pd["cfg"]
 In Pd, open `python-bridge.pd` from the kvx help folder (Help > Find externals,
 install `kvx`, then open the patch). Start Python first, then click `connect`
 in the patch.
+
+## Live rows and files (0.3.0)
+
+```python
+pd.push_rows([[0.1, 0.5, 0.8], [0.2, 0.4, 0.9]])   # to [route stream] -> [kvx/stream 3]
+pd.send("synth", "freq", 440)                     # any message, no answer expected
+pdkv.save_csv("data.csv", {"time": times, "x": xs})
+pdkv.save_npy("data.npy", {"x": xs, "y": ys})
+pdkv.from_obspy(stream, "quake.csv")              # ObsPy Stream or Trace
+```
