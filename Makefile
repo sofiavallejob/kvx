@@ -2,10 +2,12 @@
 lib.name = kvx
 
 dict.class.sources = src/dict.c src/kv_core.c
-table.class.sources = src/table.c src/csv_core.c
+table.class.sources = src/table.c src/csv_core.c src/csv_ops.c src/kv_core.c
+stream.class.sources = src/stream.c
 
 datafiles = \
 	$(wildcard help/*) \
+	$(wildcard examples/*) \
 	kvx-meta.pd \
 	README.md \
 	LICENSE
@@ -19,6 +21,8 @@ include $(PDLIBBUILDER_DIR)/Makefile.pdlibbuilder
 test:
 	$(CC) -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -O1 -g -Isrc tests/test_csv.c src/csv_core.c -lm -o tests/test_csv
 	./tests/test_csv
+	$(CC) -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -O1 -g -Isrc tests/test_ops.c src/csv_ops.c src/csv_core.c src/kv_core.c -lm -o tests/test_ops
+	./tests/test_ops
 	$(CC) -std=c99 -Wall -Wextra -O1 -g tests/test_core.c src/kv_core.c -lm -o tests/test_core
 	./tests/test_core
 
