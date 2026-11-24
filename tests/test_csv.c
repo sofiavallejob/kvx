@@ -160,6 +160,21 @@ int main(void)
         CHECK(!c && strstr(err, "nope"));
     }
 
+    /* header guess: a data line that has words is not a header */
+    kv_csv_opts_default(&o);
+    c = rd("2024-01-01,1.5,ABC\n2024-01-02,2.5,ABC\n", &o, err);
+    CHECK(c && c->nrows == 2 && !strcmp(c->name[2], "col3") && !strcmp(c->txt[2][0], "ABC"));
+    kv_csv_free(c);
+    c = rd("name,city\nAna,Graz\nLuis,Wien\n", &o, err);       /* all words: header */
+    CHECK(c && c->nrows == 2 && !strcmp(c->name[1], "city"));
+    kv_csv_free(c);
+    c = rd("# comment\nt,v\n\n# another\n1,2\n", &o, err);   /* comments and blanks between */
+    CHECK(c && c->nrows == 1 && !strcmp(c->name[1], "v") && c->num[1][0] == 2);
+    kv_csv_free(c);
+    c = rd("only,words\n", &o, err);
+    CHECK(!c || (c->nrows == 0 && !strcmp(c->name[0], "only")));
+    kv_csv_free(c);
+
     /* errors */
     kv_csv_opts_default(&o);
     c = rd("", &o, err);
