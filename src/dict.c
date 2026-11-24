@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define KVX_VERSION "0.2.0"
+#define KVX_VERSION "0.3.0"
 #define PATHSZ 4096
 #define KVX_MAXFILE (512UL * 1024UL * 1024UL)
 #define RES 3   /* atoms reserved in front of every output buffer, for replies */

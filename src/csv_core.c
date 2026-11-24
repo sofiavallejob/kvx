@@ -295,10 +295,13 @@ static char *trimdup(const char *s)
     return p;
 }
 
-static int grow(kv_csv *c)
+int kv_csv_reserve(kv_csv *c, long want)
 {
-    long nc = c->cap ? c->cap * 2 : 1024, j;
+    long nc, j;
     int i;
+    if (want <= c->cap) return 1;
+    nc = c->cap ? c->cap * 2 : 1024;
+    if (nc < want) nc = want;
     for (i = 0; i < c->ncols; i++)
     {
         double *nn = (double *)realloc(c->num[i], nc * sizeof(double));
@@ -314,6 +317,30 @@ static int grow(kv_csv *c)
     }
     c->cap = nc;
     return 1;
+}
+
+static int grow(kv_csv *c) { return kv_csv_reserve(c, c->cap + 1); }
+
+/* The first line is a header if it has words where the next line has numbers,
+ * or if it has only words. A line with numbers and words is data. */
+static int guess_header(const rec_t *a, const rec_t *b, int dc)
+{
+    int i, text = 0, nums = 0;
+    double v;
+    for (i = 0; i < a->nf; i++)
+    {
+        int k = kv_csv_number_dc(a->f[i], &v, dc);
+        if (k == 0) text++;
+        else if (k == 1 || k == 3) nums++;
+    }
+    if (!text) return 0;
+    if (!b) return 1;
+    for (i = 0; i < a->nf && i < b->nf; i++)
+    {
+        int ka = kv_csv_number_dc(a->f[i], &v, dc), kb = kv_csv_number_dc(b->f[i], &v, dc);
+        if (ka == 0 && (kb == 1 || kb == 3)) return 1;
+    }
+    return nums == 0;
 }
 
 kv_csv *kv_csv_read(FILE *fp, const kv_csv_opts *o, char *err, size_t es)
@@ -343,10 +370,20 @@ kv_csv *kv_csv_read(FILE *fp, const kv_csv_opts *o, char *err, size_t es)
             if (o->header >= 0) hdr = o->header;
             else
             {
-                double v;
-                hdr = 0;
-                for (i = 0; i < ncf; i++)
-                    if (kv_csv_number_dc(r.f[i], &v, o->decimal_comma) == 0) { hdr = 1; break; }
+                /* peek at the next data line, then go back to where we were */
+                rec_t r2 = {0};
+                size_t l2;
+                long here = ftell(fp);
+                int got = 0, rc2;
+                while ((rc2 = read_record(fp, &r2, &l2)) == 1)
+                {
+                    if (is_blank(r2.buf) || r2.buf[0] == '#') continue;
+                    got = split_record(&r2, delim);
+                    break;
+                }
+                hdr = guess_header(&r, got ? &r2 : NULL, o->decimal_comma);
+                free(r2.buf); free(r2.f);
+                if (here < 0 || fseek(fp, here, SEEK_SET) != 0) { snprintf(err, es, "cannot read the file twice"); goto fail; }
             }
             /* which columns to keep */
             if (o->ncolsel > 0)

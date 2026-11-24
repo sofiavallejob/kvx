@@ -38,6 +38,7 @@ void kv_csv_opts_default(kv_csv_opts *o);
 kv_csv *kv_csv_read(FILE *f, const kv_csv_opts *o, char *err, size_t errsize);
 void kv_csv_free(kv_csv *c);
 int kv_csv_find(const kv_csv *c, const char *name);     /* column index or -1 */
+int kv_csv_reserve(kv_csv *c, long rows);                /* room for this many rows; 0 = out of memory */
 
 /* Returns 1 for a number, 3 for an ISO-8601 time (stored as seconds since 1970-01-01 UTC),
  * 2 for an empty cell or NaN/NA/null, 0 for text. */
