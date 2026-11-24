@@ -18,8 +18,8 @@ import threading
 import itertools
 import queue
 
-__all__ = ["Client", "PdError", "encode_atom", "decode_message"]
-__version__ = "0.2.0"
+__all__ = ["Client", "PdError", "encode_atom", "decode_message", "save_csv", "save_npy", "from_obspy"]
+__version__ = "0.3.0"
 
 
 class PdError(Exception):
@@ -155,11 +155,7 @@ class Client:
             self._waiting[rid] = q
         line = " ".join(["req", rid, selector] + [encode_atom(a) for a in args]) + ";\n"
         try:
-            try:
-                self._connect().sendall(line.encode("utf-8"))
-            except OSError:
-                self._out = None            # Pd may have been restarted: try once more
-                self._connect().sendall(line.encode("utf-8"))
+            self._send_line(line)
             try:
                 kind, atoms = q.get(timeout=self.timeout)
             except queue.Empty:
@@ -172,6 +168,43 @@ class Client:
         if kind == "error":
             raise PdError(" ".join(atoms))
         return kind, atoms
+
+    def _send_line(self, line):
+        data = line.encode("utf-8")
+        try:
+            self._connect().sendall(data)
+        except OSError:
+            self._out = None            # Pd may have been restarted: try once more
+            self._connect().sendall(data)
+
+    # ------------------------------------------------------------ plain messages
+    def send(self, *atoms):
+        """Send one message to Pd's [netreceive] without waiting for an answer.
+        In the patch, [route] it by its first word: pd.send("synth", "freq", 440)
+        arrives as [synth freq 440( and [route synth] passes on [freq 440(."""
+        if not atoms:
+            raise ValueError("send needs at least one word")
+        self._send_line(" ".join(encode_atom(a) for a in atoms) + ";\n")
+
+    def push_rows(self, rows, target="stream"):
+        """Send rows of numbers to a [kvx/stream] behind [route <target>].
+        Rows are packed several to a message, under Pd's size limit."""
+        batch, length, width = [], 0, None
+        for row in rows:
+            row = [float(v) for v in (row if hasattr(row, "__iter__") else [row])]
+            if width is None:
+                width = len(row)
+            elif len(row) != width:
+                raise ValueError("all rows need the same number of values")
+            text = [repr(v) for v in row]
+            size = sum(len(t) + 1 for t in text)
+            if batch and length + size > 3000:
+                self._send_line(" ".join([target, "push"] + batch) + ";\n")
+                batch, length = [], 0
+            batch.extend(text)
+            length += size
+        if batch:
+            self._send_line(" ".join([target, "push"] + batch) + ";\n")
 
     def close(self):
         self._closed = True
@@ -281,3 +314,6 @@ class Client:
 
     def __contains__(self, path):
         return self.has(path)
+
+
+from .data import save_csv, save_npy, from_obspy  # noqa: E402
