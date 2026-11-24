@@ -1,0 +1,116 @@
+# Builds kvx for Linux, macOS (Intel + Apple Silicon) and Windows, runs the
+# tests, then packs everything into one deken package you can download from
+# the Actions tab (Artifacts -> kvx-deken).
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PD_VERSION: "0.55-2"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pd headers
+        run: git clone --depth 1 --branch $PD_VERSION https://github.com/pure-data/pure-data.git pd
+      - name: Core tests (JSON, paths, dictionary)
+        run: |
+          gcc -std=c99 -Wall -Wextra -g -fsanitize=address,undefined tests/test_core.c src/kv_core.c -lm -o t_core
+          ./t_core
+      - name: CSV tests
+        run: |
+          gcc -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -g -fsanitize=address,undefined -Isrc tests/test_csv.c src/csv_core.c -lm -o t_csv
+          ./t_csv
+      - name: Object tests (Pd API replaced by a mock)
+        run: |
+          gcc -std=gnu99 -Wall -g -fsanitize=address,undefined -Ipd/src -Isrc tests/mock_pd.c tests/test_dict.c src/dict.c src/kv_core.c -lm -o t_dict
+          ./t_dict
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python client tests
+        run: python -m unittest discover -s python/tests
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pd headers
+        run: git clone --depth 1 --branch $PD_VERSION https://github.com/pure-data/pure-data.git pd
+      - name: Build
+        run: make PDINCLUDEDIR=pd/src
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-linux
+          path: "*.pd_linux"
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pd headers
+        run: git clone --depth 1 --branch $PD_VERSION https://github.com/pure-data/pure-data.git pd
+      - name: Build (universal arm64 + x86_64)
+        run: make PDINCLUDEDIR=pd/src arch="arm64 x86_64"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-macos
+          path: "*.pd_darwin"
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: make unzip mingw-w64-x86_64-gcc
+      - name: Pd for Windows (headers + pd.dll)
+        run: |
+          curl -L -o pd.zip https://msp.ucsd.edu/Software/pd-${PD_VERSION}.msw.zip
+          unzip -q pd.zip
+          mv pd-${PD_VERSION} pdwin
+      - name: Build
+        run: make PDDIR=pdwin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-windows
+          path: "*.dll"
+
+  package:
+    needs: [tests, linux, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: bins
+          pattern: bin-*
+          merge-multiple: true
+      - name: Assemble the kvx folder
+        run: |
+          mkdir kvx
+          cp bins/* kvx/
+          cp help/* kvx-meta.pd README.md LICENSE kvx/
+          mkdir kvx/python
+          cp -r python/pdkv python/pyproject.toml python/README.md kvx/python/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Deken package
+        run: |
+          pip install deken
+          VERSION=$(grep VERSION kvx-meta.pd | sed 's/.*VERSION \([^;]*\);/\1/')
+          deken package --version "$VERSION" kvx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kvx-deken
+          path: "*.dek*"
