@@ -25,7 +25,7 @@
 #X obj 340 650 kvx/dict demo;
 #X obj 340 720 print value;
 #X obj 480 720 print info;
-#X text 340 540 list.0 and list[0] are the first item of a list. Missing parents are created. A number in the path makes a list\,, a name makes an object., f 46;
+#X text 340 540 list.0 and list[0] are the first item of a list. Missing parents are created. A number in the path makes a list\, a name makes an object., f 46;
 #X text 340 780 Setting inside a plain value replaces it with a new container. Deleting from a list shifts the rest down., f 46;
 #X obj 20 860 cnv 1 740 1 empty empty empty 0 0 0 12 #c8c8c8 #c8c8c8 0;
 #X text 20 868 3 - JSON files;
@@ -55,7 +55,7 @@
 #X obj 340 1546 print reply;
 #X obj 20 1620 cnv 1 740 1 empty empty empty 0 0 0 12 #c8c8c8 #c8c8c8 0;
 #X text 20 1628 reference;
-#X text 40 1650 set path v ...   one value is a number or word, several make a list.   setjson path text   JSON text into a path.   json text   replace everything.   setnull path   setbool path 0/1, f 76;
+#X text 40 1650 set path v ...   one value is a number or word\, several make a list.   setjson path text   JSON text into a path.   json text   replace everything.   setnull path   setbool path 0/1, f 76;
 #X text 40 1720 get [path]   tojson [path] [pretty]   print [path]   bang (whole dictionary as json)   has path   type path   keys [path]   size [path], f 76;
 #X text 40 1774 push path v ...   append to a list (made if missing). Several values are appended as one nested list.   del path   clear   read file   write file [pretty]   req id message ..., f 76;
 #X text 40 1844 types: object array string number bool null missing.  null comes out as the word null\, true and false as 1 and 0 (ask type to tell them from numbers). A list of one item comes out as a plain value., f 76;
